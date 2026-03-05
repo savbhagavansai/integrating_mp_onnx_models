@@ -235,3 +235,5 @@ data class HandTrackingResult(
         result = 31 * result + presence.hashCode()
         result = 31 * result + handedness.hashCode()
         return result
+    }
+}
