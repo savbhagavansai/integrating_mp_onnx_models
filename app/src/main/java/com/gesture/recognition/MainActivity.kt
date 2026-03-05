@@ -147,14 +147,21 @@ class MainActivity : AppCompatActivity() {
         }, ContextCompat.getMainExecutor(this))
     }
 
+    // In MainActivity.kt, find bindCameraUseCases() function (around line 145)
+// Replace lines 156-166 with this:
+
     private fun bindCameraUseCases() {
         val provider = cameraProvider ?: return
 
         provider.unbindAll()
 
-        // Preview - lower resolution for edge devices
+        // ═══════════════════════════════════════════════════════════
+        // FIX: Change resolution from 240×180 to 640×480
+        // ═══════════════════════════════════════════════════════════
+
+        // Preview - OPTIMAL resolution for ONNX hand tracking
         val preview = Preview.Builder()
-            .setTargetResolution(android.util.Size(240, 180))  // Reduced for performance
+            .setTargetResolution(android.util.Size(640, 480))  // ✅ CHANGED: 240×180 → 640×480
             .build()
             .also {
                 it.setSurfaceProvider(previewView.surfaceProvider)
@@ -162,7 +169,7 @@ class MainActivity : AppCompatActivity() {
 
         // Image analysis - match preview resolution
         val imageAnalyzer = ImageAnalysis.Builder()
-            .setTargetResolution(android.util.Size(240, 180))  // Reduced for performance
+            .setTargetResolution(android.util.Size(640, 480))  // ✅ CHANGED: 240×180 → 640×480
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
             .build()
             .also {
@@ -170,6 +177,8 @@ class MainActivity : AppCompatActivity() {
                     processImageProxy(imageProxy)
                 }
             }
+
+        // ═══════════════════════════════════════════════════════════
 
         // Select camera
         val cameraSelector = if (useFrontCamera) {
