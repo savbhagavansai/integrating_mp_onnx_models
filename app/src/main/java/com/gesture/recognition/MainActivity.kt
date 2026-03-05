@@ -340,7 +340,7 @@ class MainActivity : AppCompatActivity() {
                 landmarks = landmarks,
                 fps = fps,
                 frameCount = frameCount,
-                bufferSize = gestureRecognizer?.sequenceBuffer?.getCurrentSize() ?: 0,  // ← NEW
+                bufferSize = gestureRecognizer?.sequenceBuffer?.size() ?: 0  // ← NEW
                 handDetected = landmarks != null,
                 imageWidth = imageWidth,
                 imageHeight = imageHeight,
