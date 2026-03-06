@@ -55,15 +55,18 @@ class GestureOverlayView @JvmOverloads constructor(
     private var lastTapTime = 0L
     private var tapCount = 0
 
-    // Timing data
-    private var mediaPipeMs = 0.0
-    private var onnxMs = 0.0
+    // Timing data - UPDATED for ONNX pipeline
+    private var handDetectorMs = 0.0
+    private var landmarksMs = 0.0
+    private var gestureMs = 0.0
     private var totalMs = 0.0
+    private var wasTracking = false
 
-    // Expected performance targets
-    private val expectedMediaPipeMs = 10.0  // GPU target
-    private val expectedOnnxMs = 8.0        // NPU target
-    private val expectedTotalMs = 40.0      // Combined target
+    // Expected performance targets - UPDATED for ONNX pipeline
+    private val expectedHandDetectorMs = 3.0   // NPU target for detector
+    private val expectedLandmarksMs = 2.0      // NPU target for landmarks
+    private val expectedGestureMs = 3.0        // NPU target for gesture
+    private val expectedTotalMs = 10.0         // Total target
 
     // Thread safety - create copy before drawing
     private val landmarksLock = Any()
@@ -155,10 +158,12 @@ class GestureOverlayView @JvmOverloads constructor(
             this.rotation = rotation
             this.mirrorHorizontal = mirrorHorizontal
 
-            // Extract timing data from result for performance monitoring
-            this.mediaPipeMs = result?.mediaPipeTimeMs ?: 0.0
-            this.onnxMs = result?.onnxTimeMs ?: 0.0
+            // Extract timing data from result for performance monitoring - UPDATED
+            this.handDetectorMs = result?.handDetectorTimeMs ?: 0.0
+            this.landmarksMs = result?.landmarksTimeMs ?: 0.0
+            this.gestureMs = result?.gestureTimeMs ?: 0.0
             this.totalMs = result?.totalTimeMs ?: 0.0
+            this.wasTracking = result?.wasTracking ?: false
 
             // PRE-COMPUTE display coordinates (do heavy math here, not in onDraw!)
             this.displayPoints = if (landmarks != null && landmarks.size == 63) {
@@ -470,7 +475,7 @@ class GestureOverlayView @JvmOverloads constructor(
 
     /**
      * Draw performance debug panel (toggleable with triple-tap)
-     * Shows MediaPipe, ONNX timing and hardware status
+     * Shows HandDetector, Landmarks, Gesture timing and hardware status
      */
     private fun drawDebugPanel(canvas: Canvas) {
         if (!showDebugPanel) return
@@ -478,7 +483,7 @@ class GestureOverlayView @JvmOverloads constructor(
         val panelX = 40f
         val panelY = 180f
         val panelWidth = width - 80f
-        val panelHeight = 400f
+        val panelHeight = 550f  // Increased height for tracking mode
 
         // Semi-transparent background
         backgroundPaint.alpha = 230
@@ -499,44 +504,63 @@ class GestureOverlayView @JvmOverloads constructor(
 
         var yPos = panelY + 130f
 
-        // MediaPipe timing with color coding
-        val mpColor = if (mediaPipeMs <= expectedMediaPipeMs * 1.5) Color.GREEN else Color.RED
-        val mpStatus = if (mediaPipeMs <= expectedMediaPipeMs * 1.5) "✓ GPU" else "✗ CPU"
+        // HandDetector timing with color coding
+        val detectorColor = if (handDetectorMs <= expectedHandDetectorMs * 1.5) Color.GREEN else Color.RED
+        val detectorStatus = if (handDetectorMs <= expectedHandDetectorMs * 1.5) "✓ NPU" else "✗ CPU"
 
         smallTextPaint.color = Color.WHITE
         smallTextPaint.textSize = 28f
-        canvas.drawText("MediaPipe:", panelX + 20f, yPos, smallTextPaint)
+        canvas.drawText("HandDetector:", panelX + 20f, yPos, smallTextPaint)
 
-        textPaint.color = mpColor
+        textPaint.color = detectorColor
         textPaint.textSize = 32f
-        canvas.drawText(String.format("%.1fms", mediaPipeMs), panelX + 200f, yPos, textPaint)
+        canvas.drawText(String.format("%.1fms", handDetectorMs), panelX + 250f, yPos, textPaint)
 
-        smallTextPaint.color = mpColor
-        canvas.drawText(mpStatus, panelX + 320f, yPos, smallTextPaint)
+        smallTextPaint.color = detectorColor
+        canvas.drawText(detectorStatus, panelX + 380f, yPos, smallTextPaint)
 
         yPos += 35f
         tinyTextPaint.color = Color.GRAY
         tinyTextPaint.textSize = 22f
-        canvas.drawText(String.format("Target: %.0fms (GPU)", expectedMediaPipeMs), panelX + 40f, yPos, tinyTextPaint)
+        canvas.drawText(String.format("Target: %.0fms (NPU)", expectedHandDetectorMs), panelX + 40f, yPos, tinyTextPaint)
 
         yPos += 50f
 
-        // ONNX timing with color coding
-        val onnxColor = if (onnxMs <= expectedOnnxMs * 1.5) Color.GREEN else Color.RED
-        val onnxStatus = if (onnxMs <= expectedOnnxMs * 1.5) "✓ NPU" else "✗ CPU"
+        // Landmarks timing with color coding
+        val landmarksColor = if (landmarksMs <= expectedLandmarksMs * 1.5) Color.GREEN else Color.RED
+        val landmarksStatus = if (landmarksMs <= expectedLandmarksMs * 1.5) "✓ NPU" else "✗ CPU"
 
         smallTextPaint.color = Color.WHITE
-        canvas.drawText("ONNX:", panelX + 20f, yPos, smallTextPaint)
+        canvas.drawText("Landmarks:", panelX + 20f, yPos, smallTextPaint)
 
-        textPaint.color = onnxColor
-        canvas.drawText(String.format("%.1fms", onnxMs), panelX + 200f, yPos, textPaint)
+        textPaint.color = landmarksColor
+        canvas.drawText(String.format("%.1fms", landmarksMs), panelX + 250f, yPos, textPaint)
 
-        smallTextPaint.color = onnxColor
-        canvas.drawText(onnxStatus, panelX + 320f, yPos, smallTextPaint)
+        smallTextPaint.color = landmarksColor
+        canvas.drawText(landmarksStatus, panelX + 380f, yPos, smallTextPaint)
 
         yPos += 35f
         tinyTextPaint.color = Color.GRAY
-        canvas.drawText(String.format("Target: %.0fms (NPU)", expectedOnnxMs), panelX + 40f, yPos, tinyTextPaint)
+        canvas.drawText(String.format("Target: %.0fms (NPU)", expectedLandmarksMs), panelX + 40f, yPos, tinyTextPaint)
+
+        yPos += 50f
+
+        // Gesture timing with color coding
+        val gestureColor = if (gestureMs <= expectedGestureMs * 1.5) Color.GREEN else Color.RED
+        val gestureStatus = if (gestureMs <= expectedGestureMs * 1.5) "✓ NPU" else "✗ CPU"
+
+        smallTextPaint.color = Color.WHITE
+        canvas.drawText("Gesture:", panelX + 20f, yPos, smallTextPaint)
+
+        textPaint.color = gestureColor
+        canvas.drawText(String.format("%.1fms", gestureMs), panelX + 250f, yPos, textPaint)
+
+        smallTextPaint.color = gestureColor
+        canvas.drawText(gestureStatus, panelX + 380f, yPos, smallTextPaint)
+
+        yPos += 35f
+        tinyTextPaint.color = Color.GRAY
+        canvas.drawText(String.format("Target: %.0fms (NPU)", expectedGestureMs), panelX + 40f, yPos, tinyTextPaint)
 
         yPos += 50f
 
@@ -547,7 +571,11 @@ class GestureOverlayView @JvmOverloads constructor(
         canvas.drawText("Total:", panelX + 20f, yPos, smallTextPaint)
 
         textPaint.color = totalColor
-        canvas.drawText(String.format("%.1fms", totalMs), panelX + 200f, yPos, textPaint)
+        canvas.drawText(String.format("%.1fms", totalMs), panelX + 250f, yPos, textPaint)
+
+        smallTextPaint.color = totalColor
+        val totalStatus = if (totalMs <= expectedTotalMs * 1.5) "✓ FAST" else "✗ SLOW"
+        canvas.drawText(totalStatus, panelX + 380f, yPos, smallTextPaint)
 
         yPos += 35f
         tinyTextPaint.color = Color.GRAY
@@ -555,26 +583,24 @@ class GestureOverlayView @JvmOverloads constructor(
 
         yPos += 50f
 
-        // Hardware status summary
+        // Tracking Mode Indicator
+        val modeColor = if (wasTracking) Color.CYAN else Color.YELLOW
+        val modeText = if (wasTracking) "TRACKING" else "DETECTION"
+
         smallTextPaint.color = Color.WHITE
-        smallTextPaint.textSize = 28f
-        canvas.drawText("Hardware Status:", panelX + 20f, yPos, smallTextPaint)
+        canvas.drawText("Mode:", panelX + 20f, yPos, smallTextPaint)
 
-        yPos += 40f
-        val gpuWorking = mediaPipeMs <= expectedMediaPipeMs * 1.5
-        smallTextPaint.color = if (gpuWorking) Color.GREEN else Color.RED
-        canvas.drawText(
-            if (gpuWorking) "• GPU: Enabled ✓" else "• GPU: CPU Fallback ✗",
-            panelX + 40f, yPos, smallTextPaint
-        )
+        textPaint.color = modeColor
+        textPaint.textSize = 32f
+        canvas.drawText(modeText, panelX + 250f, yPos, textPaint)
 
-        yPos += 35f
-        val npuWorking = onnxMs <= expectedOnnxMs * 1.5
-        smallTextPaint.color = if (npuWorking) Color.GREEN else Color.RED
-        canvas.drawText(
-            if (npuWorking) "• NPU: Enabled ✓" else "• NPU: CPU Backend ✗",
-            panelX + 40f, yPos, smallTextPaint
-        )
+        yPos += 45f
+
+        // Frame info
+        tinyTextPaint.color = Color.GRAY
+        tinyTextPaint.textSize = 24f
+        canvas.drawText("Frame: $frameCount | FPS: ${String.format("%.1f", fps)}",
+                       panelX + 20f, yPos, tinyTextPaint)
     }
 
     /**

@@ -3,6 +3,8 @@ package com.gesture.recognition
 /**
  * Result of gesture recognition with performance timing data
  * Contains gesture name, confidence, probabilities, and detailed timing breakdown
+ *
+ * NEW: Separate timing for HandDetector, Landmarks, and Gesture classifier
  */
 data class GestureResult(
     val gesture: String,
@@ -11,10 +13,21 @@ data class GestureResult(
     val handDetected: Boolean = true,
     val bufferProgress: Float = 1f,
     val isStable: Boolean = false,
-    // Performance timing (in milliseconds)
+
+    // ═══════════════════════════════════════════════════════════
+    // UPDATED: Performance timing breakdown (in milliseconds)
+    // ═══════════════════════════════════════════════════════════
+    val handDetectorTimeMs: Double = 0.0,   // Stage 1: Palm/hand detection
+    val landmarksTimeMs: Double = 0.0,      // Stage 2: Landmark extraction
+    val gestureTimeMs: Double = 0.0,        // Stage 3: Gesture classification
+    val totalTimeMs: Double = 0.0,          // Total pipeline time
+    val wasTracking: Boolean = false,       // Was in tracking mode (vs detection)
+
+    // Keep old names for backward compatibility (deprecated)
+    @Deprecated("Use handDetectorTimeMs and landmarksTimeMs instead")
     val mediaPipeTimeMs: Double = 0.0,
-    val onnxTimeMs: Double = 0.0,
-    val totalTimeMs: Double = 0.0
+    @Deprecated("Use gestureTimeMs instead")
+    val onnxTimeMs: Double = 0.0
 ) {
     /**
      * Check if prediction meets confidence threshold

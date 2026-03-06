@@ -107,7 +107,6 @@ class MainActivity : AppCompatActivity() {
 
         // Double tap to switch camera
         var lastTapTime = 0L
-        /*
         overlayView.setOnTouchListener { _, event ->
             if (event.action == MotionEvent.ACTION_DOWN) {
                 val currentTime = System.currentTimeMillis()
@@ -121,7 +120,6 @@ class MainActivity : AppCompatActivity() {
                 false
             }
         }
-        */
     }
 
     private fun switchCamera() {
@@ -149,29 +147,22 @@ class MainActivity : AppCompatActivity() {
         }, ContextCompat.getMainExecutor(this))
     }
 
-    // In MainActivity.kt, find bindCameraUseCases() function (around line 145)
-// Replace lines 156-166 with this:
-
     private fun bindCameraUseCases() {
         val provider = cameraProvider ?: return
 
         provider.unbindAll()
 
-        // ═══════════════════════════════════════════════════════════
-        // FIX: Change resolution from 240×180 to 640×480
-        // ═══════════════════════════════════════════════════════════
-
-        // Preview - OPTIMAL resolution for ONNX hand tracking
+        // Preview - OPTIMAL resolution for ONNX hand tracking (640×480)
         val preview = Preview.Builder()
-            .setTargetResolution(android.util.Size(640, 480))  // ✅ CHANGED: 240×180 → 640×480
+            .setTargetResolution(android.util.Size(640, 480))  // ✅ CHANGED from 240×180
             .build()
             .also {
                 it.setSurfaceProvider(previewView.surfaceProvider)
             }
 
-        // Image analysis - match preview resolution
+        // Image analysis - match preview resolution (640×480)
         val imageAnalyzer = ImageAnalysis.Builder()
-            .setTargetResolution(android.util.Size(640, 480))  // ✅ CHANGED: 240×180 → 640×480
+            .setTargetResolution(android.util.Size(640, 480))  // ✅ CHANGED from 240×180
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
             .build()
             .also {
@@ -179,8 +170,6 @@ class MainActivity : AppCompatActivity() {
                     processImageProxy(imageProxy)
                 }
             }
-
-        // ═══════════════════════════════════════════════════════════
 
         // Select camera
         val cameraSelector = if (useFrontCamera) {

@@ -29,6 +29,9 @@ class GestureRecognizerONNX(private val context: Context) {
     // State
     private var lastLandmarks: FloatArray? = null
 
+    // Performance tracking
+    private var lastGestureTimeMs = 0.0
+
     init {
         Log.d(TAG, "Initializing Gesture Recognizer ONNX...")
 
@@ -46,24 +49,31 @@ class GestureRecognizerONNX(private val context: Context) {
      * @return GestureResultONNX or null if no hand detected
      */
     fun processFrame(bitmap: Bitmap): GestureResultONNX? {
+        // ═══════════════════════════════════════════════════════════
         // Stage 1: Hand tracking (detector + landmarks on NPU)
+        // ═══════════════════════════════════════════════════════════
         val trackingResult = handTracker.processFrame(bitmap)
 
         if (trackingResult == null) {
             // No hand detected
             lastLandmarks = null
             sequenceBuffer.clear()
+            lastGestureTimeMs = 0.0
             return null
         }
 
+        // ═══════════════════════════════════════════════════════════
         // Stage 2: Normalize landmarks
+        // ═══════════════════════════════════════════════════════════
         val landmarksFlat = flattenLandmarks(trackingResult.landmarks)
         val normalizedLandmarks = LandmarkNormalizer.normalize(landmarksFlat)
 
         // Store for external access
         lastLandmarks = landmarksFlat
 
+        // ═══════════════════════════════════════════════════════════
         // Stage 3: Add to sequence buffer
+        // ═══════════════════════════════════════════════════════════
         sequenceBuffer.add(normalizedLandmarks)
 
         if (!sequenceBuffer.isFull()) {
@@ -76,7 +86,9 @@ class GestureRecognizerONNX(private val context: Context) {
             )
         }
 
+        // ═══════════════════════════════════════════════════════════
         // Stage 4: Gesture classification (on NPU)
+        // ═══════════════════════════════════════════════════════════
         val sequence = sequenceBuffer.getSequence()
 
         if (sequence == null) {
@@ -88,7 +100,11 @@ class GestureRecognizerONNX(private val context: Context) {
             )
         }
 
+        // Measure gesture inference time
+        val gestureStart = System.nanoTime()
         val prediction = gestureClassifier.predictWithConfidence(sequence)
+        val gestureTimeMs = (System.nanoTime() - gestureStart) / 1_000_000.0
+        lastGestureTimeMs = gestureTimeMs
 
         if (prediction == null) {
             // No confident prediction
@@ -102,14 +118,24 @@ class GestureRecognizerONNX(private val context: Context) {
 
         val (gesture, confidence, probabilities) = prediction
 
-        // Create gesture result
+        // ═══════════════════════════════════════════════════════════
+        // Create gesture result with DETAILED timing breakdown
+        // ═══════════════════════════════════════════════════════════
         val gestureResult = GestureResult(
             gesture = gesture,
             confidence = confidence,
             allProbabilities = probabilities,
-            mediaPipeTimeMs = trackingResult.totalTimeMs.toDouble(),  // Hand tracking time
-            onnxTimeMs = 0.0,  // Gesture classifier time (embedded in handTracking)
-            totalTimeMs = trackingResult.totalTimeMs.toDouble()
+
+            // NEW: Separate timing for each stage
+            handDetectorTimeMs = trackingResult.detectorTimeMs.toDouble(),   // Stage 1
+            landmarksTimeMs = trackingResult.landmarkTimeMs.toDouble(),       // Stage 2
+            gestureTimeMs = gestureTimeMs,                                    // Stage 3
+            totalTimeMs = trackingResult.totalTimeMs.toDouble() + gestureTimeMs, // Total
+            wasTracking = trackingResult.wasTracking,                         // Tracking mode?
+
+            // OLD: Keep for backward compatibility
+            mediaPipeTimeMs = trackingResult.totalTimeMs.toDouble(),
+            onnxTimeMs = gestureTimeMs
         )
 
         return GestureResultONNX(
@@ -144,6 +170,11 @@ class GestureRecognizerONNX(private val context: Context) {
     fun getBufferSize(): Int = sequenceBuffer.size()
 
     /**
+     * Get last gesture inference time
+     */
+    fun getLastGestureTimeMs(): Double = lastGestureTimeMs
+
+    /**
      * Get accelerator info
      */
     fun getHandTrackingAccelerator(): String {
@@ -161,6 +192,7 @@ class GestureRecognizerONNX(private val context: Context) {
         handTracker.resetTracking()
         sequenceBuffer.clear()
         lastLandmarks = null
+        lastGestureTimeMs = 0.0
     }
 
     fun close() {
