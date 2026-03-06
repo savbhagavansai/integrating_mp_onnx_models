@@ -50,8 +50,8 @@ class GestureOverlayView @JvmOverloads constructor(
     private var cachedOffsetY = 0f
     private var cacheValid = false
 
-    // PERFORMANCE MONITORING - Debug panel
-    private var showDebugPanel = false
+    // PERFORMANCE MONITORING - Debug panel ALWAYS VISIBLE
+    private var showDebugPanel = true  // ✅ CHANGED: true (always show)
     private var lastTapTime = 0L
     private var tapCount = 0
 
@@ -87,7 +87,7 @@ class GestureOverlayView @JvmOverloads constructor(
         5 to 9, 9 to 13, 13 to 17
     )
 
-    // Paints
+    // Paints - UPDATED: Larger and more visible
     private val landmarkPaint = Paint().apply {
         color = Color.RED
         style = Paint.Style.FILL
@@ -97,7 +97,7 @@ class GestureOverlayView @JvmOverloads constructor(
     private val connectionPaint = Paint().apply {
         color = Color.GREEN
         style = Paint.Style.STROKE
-        strokeWidth = 4f
+        strokeWidth = 8f  // ✅ CHANGED: 4f → 8f (thicker lines)
         isAntiAlias = true
     }
 
@@ -272,11 +272,17 @@ class GestureOverlayView @JvmOverloads constructor(
         // Use pre-computed display points (FloatArray: [x0,y0, x1,y1, ...])
         val points = synchronized(landmarksLock) {
             displayPoints
-        } ?: return
-
-        if (points.isEmpty() || points.size != 42) {  // 21 landmarks × 2 = 42
+        } ?: run {
+            Log.d(TAG, "No display points available")
             return
         }
+
+        if (points.isEmpty() || points.size != 42) {  // 21 landmarks × 2 = 42
+            Log.d(TAG, "Invalid points size: ${points.size}, expected 42")
+            return
+        }
+
+        Log.d(TAG, "Drawing landmarks: ${points.size/2} points")
 
         // Draw connections first (underneath)
         for ((start, end) in handConnections) {
@@ -289,11 +295,11 @@ class GestureOverlayView @JvmOverloads constructor(
             }
         }
 
-        // Draw landmarks on top
+        // Draw landmarks on top - LARGER circles for visibility
         for (i in 0 until 21) {
             val x = points[i * 2]
             val y = points[i * 2 + 1]
-            canvas.drawCircle(x, y, 10f, landmarkPaint)
+            canvas.drawCircle(x, y, 15f, landmarkPaint)  // ✅ CHANGED: 10f → 15f (larger)
         }
     }
 
@@ -500,7 +506,7 @@ class GestureOverlayView @JvmOverloads constructor(
 
         smallTextPaint.color = Color.GRAY
         smallTextPaint.textSize = 24f
-        canvas.drawText("Triple-tap to hide", panelX + 20f, panelY + 80f, smallTextPaint)
+        canvas.drawText("Real-time Performance Metrics", panelX + 20f, panelY + 80f, smallTextPaint)  // ✅ CHANGED
 
         var yPos = panelY + 130f
 
@@ -622,27 +628,10 @@ class GestureOverlayView @JvmOverloads constructor(
     }
 
     /**
-     * Handle touch events for debug panel toggle (triple-tap)
+     * Handle touch events - REMOVED triple-tap (panel always visible now)
      */
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (event.action == MotionEvent.ACTION_DOWN) {
-            val currentTime = System.currentTimeMillis()
-
-            // Triple-tap detection (within 300ms)
-            if (currentTime - lastTapTime < 300) {
-                tapCount++
-                if (tapCount >= 2) {  // Third tap
-                    showDebugPanel = !showDebugPanel
-                    Log.d(TAG, "Debug panel: ${if (showDebugPanel) "SHOWN" else "HIDDEN"}")
-                    postInvalidate()
-                    tapCount = 0
-                }
-            } else {
-                tapCount = 0
-            }
-
-            lastTapTime = currentTime
-        }
-        return true
+        // Panel is always visible, no toggle needed
+        return false  // Let other views handle touch events
     }
 }
