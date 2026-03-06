@@ -224,8 +224,25 @@ class MainActivity : AppCompatActivity() {
                         val onnxResult = gestureRecognizer?.processFrame(bitmap)
 
                         // Extract gesture result and landmarks from onnxResult
-                        val result = onnxResult?.gestureResult
                         val landmarks = onnxResult?.landmarks
+
+                        val result = if (onnxResult?.gestureResult != null) {
+                            onnxResult.gestureResult
+                        } else if (onnxResult != null) {
+                            // Show timing even when buffer not full
+                            GestureResult(
+                                gesture = "buffering",
+                                confidence = 0f,
+                                allProbabilities = FloatArray(Config.NUM_CLASSES),
+                                handDetectorTimeMs = onnxResult.handTracking.detectorTimeMs.toDouble(),
+                                landmarksTimeMs = onnxResult.handTracking.landmarkTimeMs.toDouble(),
+                                gestureTimeMs = 0.0,
+                                totalTimeMs = onnxResult.handTracking.totalTimeMs.toDouble(),
+                                wasTracking = onnxResult.handTracking.wasTracking
+                            )
+                        } else {
+                            null
+                        }
                         currentLandmarks = landmarks
 
                         // Calculate FPS
