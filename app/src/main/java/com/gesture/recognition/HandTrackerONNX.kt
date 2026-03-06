@@ -134,8 +134,9 @@ class HandTrackerONNX(private val context: Context) {
                 }
             }
 
-            // Enable tracking for next frame
-            isTracking = true
+            // ✅ FIX: Enable tracking BEFORE creating result (not after!)
+            val wasCurrentlyTracking = isTracking  // Capture current state
+            isTracking = true  // ← Moved UP from line 138
 
             // Store timing
             lastDetectorTime = detectorMs.toLong()
@@ -149,7 +150,7 @@ class HandTrackerONNX(private val context: Context) {
                 detectorTimeMs = detectorMs,
                 landmarkTimeMs = landmarkMs,
                 totalTimeMs = detectorMs + landmarkMs,
-                wasTracking = isTracking
+                wasTracking = wasCurrentlyTracking  // ✅ Use captured state
             )
         }
 
