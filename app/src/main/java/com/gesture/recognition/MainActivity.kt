@@ -107,6 +107,7 @@ class MainActivity : AppCompatActivity() {
 
         // Double tap to switch camera
         var lastTapTime = 0L
+        /*
         overlayView.setOnTouchListener { _, event ->
             if (event.action == MotionEvent.ACTION_DOWN) {
                 val currentTime = System.currentTimeMillis()
@@ -120,6 +121,7 @@ class MainActivity : AppCompatActivity() {
                 false
             }
         }
+        */
     }
 
     private fun switchCamera() {
