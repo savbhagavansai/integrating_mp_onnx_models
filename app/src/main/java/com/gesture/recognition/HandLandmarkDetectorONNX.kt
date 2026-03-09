@@ -47,7 +47,7 @@ class HandLandmarkDetectorONNX(private val context: Context) {
                 sessionOptions.addNnapi()
 
                 // LOW_POWER mode prefers GPU
-                sessionOptions.addConfigEntry("nnapi.execution_preference", "2")
+                // sessionOptions.addConfigEntry("nnapi.execution_preference", "2")
 
                 Log.d(TAG, "✓ NNAPI enabled with GPU preference")
                 Log.d(TAG, "   Target: Mali-G68 MP5 GPU")

@@ -64,7 +64,7 @@ class HandDetectorONNX(private val context: Context) {
                 // 1 = SUSTAINED_SPEED (balanced)
                 // 2 = LOW_POWER (prefers GPU) ← We want this!
                 // 3 = CPU fallback
-                sessionOptions.addConfigEntry("nnapi.execution_preference", "2")
+                // sessionOptions.addConfigEntry("nnapi.execution_preference", "2")
 
                 Log.d(TAG, "✓ NNAPI enabled with GPU preference (LOW_POWER mode)")
                 Log.d(TAG, "   Target: Mali-G68 MP5 GPU")
