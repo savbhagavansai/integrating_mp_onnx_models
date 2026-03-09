@@ -66,31 +66,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        lifecycleScope.launch {
-            delay(2000) // Wait 2 seconds for initialization
-
-            val diagnosticInfo = StringBuilder()
-            diagnosticInfo.appendLine("ONNX Runtime Diagnostic:")
-
-            try {
-                val providers = ai.onnxruntime.OrtEnvironment.getAvailableProviders()
-                diagnosticInfo.appendLine("Providers: ${providers.joinToString()}")
-
-                if (providers.contains("NnapiExecutionProvider")) {
-                    diagnosticInfo.appendLine("✅ NNAPI Available")
-                } else {
-                    diagnosticInfo.appendLine("❌ NNAPI NOT Available")
-                }
-            } catch (e: Exception) {
-                diagnosticInfo.appendLine("Error: ${e.message}")
-            }
-
-            // Show on screen
-            Toast.makeText(this@MainActivity, diagnosticInfo.toString(), Toast.LENGTH_LONG).show()
-
-            // Also log it
-            Log.d(TAG, diagnosticInfo.toString())
-        }
 
         // Initialize UI
         initializeViews()

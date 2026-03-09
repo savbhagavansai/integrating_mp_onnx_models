@@ -39,89 +39,33 @@ class HandDetectorONNX(private val context: Context) {
 
     init {
         Log.d(TAG, "════════════════════════════════════════")
-        Log.d(TAG, "🔍 DIAGNOSTIC: Initializing Hand Detector")
-        Log.d(TAG, "════════════════════════════════════════")
+        Log.d(TAG, "Initializing Hand Detector...")
 
         // Generate anchors
         anchors = generateAnchors()
-        Log.d(TAG, "✓ Anchors generated: ${anchors.size / 4} anchors")
 
         // Load ONNX model
         try {
             ortEnvironment = OrtEnvironment.getEnvironment()
-            Log.d(TAG, "✓ ORT Environment created")
-
-            // ═══════════════════════════════════════════════════════
-            // DIAGNOSTIC: Check what providers are available
-            // ═══════════════════════════════════════════════════════
-            val availableProviders = OrtEnvironment.getAvailableProviders()
-            Log.d(TAG, "📊 Available providers in ONNX Runtime:")
-            availableProviders.forEach { provider ->
-                Log.d(TAG, "    - $provider")
-            }
-
-            if (availableProviders.contains("NnapiExecutionProvider")) {
-                Log.d(TAG, "✅ GOOD: NNAPI provider IS available!")
-            } else {
-                Log.e(TAG, "❌ BAD: NNAPI provider NOT available!")
-                Log.e(TAG, "    This ONNX Runtime build does NOT support NNAPI!")
-                Log.e(TAG, "    Models will run on CPU only!")
-            }
-            // ═══════════════════════════════════════════════════════
 
             val modelBytes = context.assets.open(MODEL_NAME).use { it.readBytes() }
-            Log.d(TAG, "✓ Model loaded: ${modelBytes.size / 1024}KB from assets")
 
             val sessionOptions = OrtSession.SessionOptions()
 
-            // ═══════════════════════════════════════════════════════
-            // DIAGNOSTIC: Try to enable NNAPI
-            // ═══════════════════════════════════════════════════════
-            var nnapiAdded = false
+            // Try to enable NNAPI
             try {
-                Log.d(TAG, "🔧 Attempting to add NNAPI...")
                 sessionOptions.addNnapi()
-                nnapiAdded = true
-                Log.d(TAG, "✅ addNnapi() succeeded (no exception)")
+                Log.d(TAG, "NNAPI enabled")
             } catch (e: Exception) {
-                Log.e(TAG, "❌ addNnapi() FAILED with exception:")
-                Log.e(TAG, "    ${e.javaClass.simpleName}: ${e.message}")
-                e.printStackTrace()
+                Log.e(TAG, "NNAPI failed: ${e.message}")
             }
-            // ═══════════════════════════════════════════════════════
 
             onnxSession = ortEnvironment?.createSession(modelBytes, sessionOptions)
-            Log.d(TAG, "✓ ONNX Session created")
 
-            // ═══════════════════════════════════════════════════════
-            // DIAGNOSTIC: Check which providers the session is using
-            // ═══════════════════════════════════════════════════════
-            val sessionProviders = onnxSession?.providers
-            Log.d(TAG, "📊 Session is using these providers:")
-            sessionProviders?.forEach { provider ->
-                Log.d(TAG, "    - $provider")
-            }
-
-            val usingNnapi = sessionProviders?.contains("NnapiExecutionProvider") == true
-
-            if (usingNnapi) {
-                Log.d(TAG, "✅ SUCCESS: Session IS using NNAPI!")
-                Log.d(TAG, "    Models should run on NPU/GPU")
-            } else {
-                Log.e(TAG, "❌ FAILURE: Session is NOT using NNAPI!")
-                Log.e(TAG, "    Running on: ${sessionProviders?.firstOrNull() ?: "UNKNOWN"}")
-                Log.e(TAG, "    Possible reasons:")
-                Log.e(TAG, "      1. ONNX Runtime build doesn't include NNAPI")
-                Log.e(TAG, "      2. Model has unsupported operators")
-                Log.e(TAG, "      3. Device NNAPI is disabled/broken")
-            }
-            // ═══════════════════════════════════════════════════════
-
-            Log.d(TAG, "════════════════════════════════════════")
-            Log.d(TAG, "✓ Hand Detector initialization complete")
+            Log.d(TAG, "✓ Hand Detector loaded (${modelBytes.size / 1024}KB, ${NUM_ANCHORS} anchors)")
             Log.d(TAG, "════════════════════════════════════════")
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Failed to load detector model", e)
+            Log.e(TAG, "Failed to load detector model", e)
             throw e
         }
     }
