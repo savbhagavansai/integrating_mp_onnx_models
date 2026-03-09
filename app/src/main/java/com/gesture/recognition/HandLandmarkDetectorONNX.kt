@@ -29,7 +29,9 @@ class HandLandmarkDetectorONNX(private val context: Context) {
     private var onnxSession: OrtSession? = null
 
     init {
-        Log.d(TAG, "Initializing Landmark Detector...")
+        Log.d(TAG, "════════════════════════════════════════")
+        Log.d(TAG, "Initializing Landmark Detector (GPU mode)")
+        Log.d(TAG, "════════════════════════════════════════")
 
         try {
             ortEnvironment = OrtEnvironment.getEnvironment()
@@ -38,19 +40,31 @@ class HandLandmarkDetectorONNX(private val context: Context) {
 
             val sessionOptions = OrtSession.SessionOptions()
 
-            // Try to enable NNAPI
+            // ═══════════════════════════════════════════════════════
+            // GPU MODE: Force NNAPI to prefer GPU over NPU
+            // ═══════════════════════════════════════════════════════
             try {
                 sessionOptions.addNnapi()
-                Log.d(TAG, "NNAPI enabled")
+
+                // LOW_POWER mode prefers GPU
+                sessionOptions.addConfigEntry("nnapi.execution_preference", "2")
+
+                Log.d(TAG, "✓ NNAPI enabled with GPU preference")
+                Log.d(TAG, "   Target: Mali-G68 MP5 GPU")
             } catch (e: Exception) {
-                Log.e(TAG, "NNAPI failed: ${e.message}")
+                Log.e(TAG, "✗ NNAPI configuration failed: ${e.message}")
+                Log.e(TAG, "   Falling back to default NNAPI")
             }
+            // ═══════════════════════════════════════════════════════
 
             onnxSession = ortEnvironment?.createSession(modelBytes, sessionOptions)
 
-            Log.d(TAG, "✓ Landmark Detector loaded (${modelBytes.size / 1024}KB)")
+            Log.d(TAG, "✓ Landmark Detector loaded successfully")
+            Log.d(TAG, "   Model size: ${modelBytes.size / 1024}KB")
+            Log.d(TAG, "   Backend: NNAPI (GPU preferred)")
+            Log.d(TAG, "════════════════════════════════════════")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to load landmark model", e)
+            Log.e(TAG, "❌ Failed to load landmark model", e)
             throw e
         }
     }

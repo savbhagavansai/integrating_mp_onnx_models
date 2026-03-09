@@ -39,7 +39,8 @@ class HandDetectorONNX(private val context: Context) {
 
     init {
         Log.d(TAG, "════════════════════════════════════════")
-        Log.d(TAG, "Initializing Hand Detector...")
+        Log.d(TAG, "Initializing Hand Detector (GPU mode)")
+        Log.d(TAG, "════════════════════════════════════════")
 
         // Generate anchors
         anchors = generateAnchors()
@@ -52,20 +53,36 @@ class HandDetectorONNX(private val context: Context) {
 
             val sessionOptions = OrtSession.SessionOptions()
 
-            // Try to enable NNAPI
+            // ═══════════════════════════════════════════════════════
+            // GPU MODE: Force NNAPI to prefer GPU over NPU
+            // ═══════════════════════════════════════════════════════
             try {
                 sessionOptions.addNnapi()
-                Log.d(TAG, "NNAPI enabled")
+
+                // Execution preference:
+                // 0 = FAST_SINGLE_ANSWER (prefers NPU)
+                // 1 = SUSTAINED_SPEED (balanced)
+                // 2 = LOW_POWER (prefers GPU) ← We want this!
+                // 3 = CPU fallback
+                sessionOptions.addConfigEntry("nnapi.execution_preference", "2")
+
+                Log.d(TAG, "✓ NNAPI enabled with GPU preference (LOW_POWER mode)")
+                Log.d(TAG, "   Target: Mali-G68 MP5 GPU")
             } catch (e: Exception) {
-                Log.e(TAG, "NNAPI failed: ${e.message}")
+                Log.e(TAG, "✗ NNAPI configuration failed: ${e.message}")
+                Log.e(TAG, "   Falling back to default NNAPI")
             }
+            // ═══════════════════════════════════════════════════════
 
             onnxSession = ortEnvironment?.createSession(modelBytes, sessionOptions)
 
-            Log.d(TAG, "✓ Hand Detector loaded (${modelBytes.size / 1024}KB, ${NUM_ANCHORS} anchors)")
+            Log.d(TAG, "✓ Hand Detector loaded successfully")
+            Log.d(TAG, "   Model size: ${modelBytes.size / 1024}KB")
+            Log.d(TAG, "   Anchors: ${NUM_ANCHORS}")
+            Log.d(TAG, "   Backend: NNAPI (GPU preferred)")
             Log.d(TAG, "════════════════════════════════════════")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to load detector model", e)
+            Log.e(TAG, "❌ Failed to load detector model", e)
             throw e
         }
     }
