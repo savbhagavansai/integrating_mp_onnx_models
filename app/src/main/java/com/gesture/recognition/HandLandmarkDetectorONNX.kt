@@ -29,21 +29,63 @@ class HandLandmarkDetectorONNX(private val context: Context) {
     private var onnxSession: OrtSession? = null
 
     init {
-        Log.d(TAG, "Initializing Hand Landmark Detector...")
+        Log.d(TAG, "════════════════════════════════════════")
+        Log.d(TAG, "🔍 DIAGNOSTIC: Initializing Landmark Detector")
+        Log.d(TAG, "════════════════════════════════════════")
 
         try {
             ortEnvironment = OrtEnvironment.getEnvironment()
+            Log.d(TAG, "✓ ORT Environment created")
+
+            // ═══════════════════════════════════════════════════════
+            // DIAGNOSTIC: Check providers
+            // ═══════════════════════════════════════════════════════
+            val availableProviders = OrtEnvironment.getAvailableProviders()
+            Log.d(TAG, "📊 Available providers:")
+            availableProviders.forEach { provider ->
+                Log.d(TAG, "    - $provider")
+            }
+            // ═══════════════════════════════════════════════════════
 
             val modelBytes = context.assets.open(MODEL_NAME).use { it.readBytes() }
+            Log.d(TAG, "✓ Model loaded: ${modelBytes.size / 1024}KB")
 
             val sessionOptions = OrtSession.SessionOptions()
-            sessionOptions.addNnapi()  // Use NPU/GPU acceleration
+
+            // ═══════════════════════════════════════════════════════
+            // Try NNAPI
+            // ═══════════════════════════════════════════════════════
+            try {
+                Log.d(TAG, "🔧 Adding NNAPI...")
+                sessionOptions.addNnapi()
+                Log.d(TAG, "✅ addNnapi() succeeded")
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ addNnapi() failed: ${e.message}")
+            }
+            // ═══════════════════════════════════════════════════════
 
             onnxSession = ortEnvironment?.createSession(modelBytes, sessionOptions)
 
-            Log.d(TAG, "✓ Hand Landmark Detector loaded (${modelBytes.size / 1024}KB)")
+            // ═══════════════════════════════════════════════════════
+            // Check actual providers used
+            // ═══════════════════════════════════════════════════════
+            val sessionProviders = onnxSession?.providers
+            Log.d(TAG, "📊 Session using:")
+            sessionProviders?.forEach { Log.d(TAG, "    - $it") }
+
+            val usingNnapi = sessionProviders?.contains("NnapiExecutionProvider") == true
+            if (usingNnapi) {
+                Log.d(TAG, "✅ Using NNAPI")
+            } else {
+                Log.e(TAG, "❌ NOT using NNAPI (using ${sessionProviders?.firstOrNull()})")
+            }
+            // ═══════════════════════════════════════════════════════
+
+            Log.d(TAG, "════════════════════════════════════════")
+            Log.d(TAG, "✓ Landmark Detector ready")
+            Log.d(TAG, "════════════════════════════════════════")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to load landmark model", e)
+            Log.e(TAG, "❌ Failed to load landmark model", e)
             throw e
         }
     }
